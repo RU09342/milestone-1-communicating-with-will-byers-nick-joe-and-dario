@@ -2,7 +2,7 @@
  * Milestone1.c
  *
  *   Created on:  October 8, 2017
- *  Last Edited:  October 9, 2017
+ *  Last Edited:  October 16, 2017
  *       Author:  Nick Gorab
  *        Board:  MSP430F5529
  */
