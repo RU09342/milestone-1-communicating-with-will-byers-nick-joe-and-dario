@@ -73,33 +73,30 @@ void ledInit(void) {
 \************************/
 
 void pwmInit(void) {
-    TA0CCR0  = 0x00FF;
-    TA0CCTL1 = OUTMOD_7;
-    TA0CCR1  = 0;
-    TA0CCTL2 = OUTMOD_7;
-    TA0CCR2  = 0;
-    TA0CCTL3 = OUTMOD_7;
-    TA0CCR3  = 0;
-    TA0CTL   = TASSEL_2 + MC_1 + ID_3;
+    TA0CCR0  = 0x00FF;                  // Sets CCR0 to 255
+    TA0CCTL1 = OUTMOD_7;                // Reset/Set behavior
+    TA0CCTL2 = OUTMOD_7;                // Reset/Set behavior
+    TA0CCTL3 = OUTMOD_7;                // Reset/Set behavior
+    TA0CTL   = TASSEL_2 + MC_1 + ID_3;  // SMCLK, Up-Mode, Predivider 8
 }
 
 
 
 /***********************\
- *                     * 
+ *                     *
  *    Main Function    *
  *                     *
 \***********************/
 
 void main(void) {
 
-    WDTCTL = WDTPW + WDTHOLD;
+    WDTCTL = WDTPW + WDTHOLD;           // Disables Watchdog Timer
 
-    uartInit();
-    ledInit();
-    pwmInit();
+    uartInit();                         // UART Initialization
+    ledInit();                          // LED  Initialization
+    pwmInit();                          // PWM  Initialization
 
-    __bis_SR_register(LPM0_bits + GIE);
+    __bis_SR_register(LPM0_bits + GIE); // Low-Power Mode 0 and Global Interrupt Enable
 
 }
 
@@ -113,40 +110,33 @@ void main(void) {
 
 #pragma vector=USCI_A0_VECTOR
 __interrupt void USCI_A0_ISR(void) {
-    P4OUT |= active;
-    switch(__even_in_range(UCA0IV,USCI_UCTXIFG)) {
 
-        case USCI_NONE: break;
+    P4OUT |= active;                    // Toggles Indicator LED
 
-        case USCI_UCRXIFG:
-            switch(bit) {
-                case 0 :
-                    while(!(UCA0IFG & UCTXIFG));
-                    UCA0TXBUF = UCA0RXBUF - 3;
-                    __no_operation();
-                    break;
-                case 1 :
-                    TA0CCR1 = (UCA0RXBUF);
-                    break;
-                case 2 :
-                    TA0CCR2 = (UCA0RXBUF);
-                    break;
-                case 3 :
-                    TA0CCR3 = (UCA0RXBUF);
-                    break;
-                default:
-                    while(!(UCA0IFG & UCTXIFG));
-                    UCA0TXBUF = UCA0RXBUF;
-            }
-            if(UCA0RXBUF != 0x0D){
-                bit += 1;
-            } else if (UCA0RXBUF == 0x0D){
-                P4OUT &= ~active;
-                bit = 0;
-            }
+    switch(bit) {                       // Switch statement for byte position
+        case 0 :                        // Length Byte
+        while(!(UCA0IFG & UCTXIFG));    // Checks to make sure TX Buffer is ready
+        UCA0TXBUF = UCA0RXBUF - 3;      // Sends bit
+        break;
+        case 1 :                        // Red LED PWM
+            TA0CCR1 = (UCA0RXBUF);      // Sets CCR1 value to incoming byte
             break;
-        case USCI_UCTXIFG : break;
-        default: break;
+        case 2 :                        // Green LED PWM
+            TA0CCR2 = (UCA0RXBUF);      // Sets CCR1 value to incoming byte
+            break;
+        case 3 :                        // Blue LED PWM
+            TA0CCR3 = (UCA0RXBUF);      // Sets CCR1 value to incoming byte
+            break;
+        default:                        // For all of the other bytes
+            while(!(UCA0IFG & UCTXIFG));// Checks to make sure TX buffer is ready
+            UCA0TXBUF = UCA0RXBUF;      // Passes incoming byte to outgoing byte
+        break;
+    }
+
+    if(UCA0RXBUF != 0x0D){          // If the end byte is not recieved
+        bit += 1;                   // Increment the bit value
+    } else {                        // If the end byte is reachec
+        P4OUT &= ~active;           // Turn off Indicator LED
+        bit = 0;                    // Resets the bit value
     }
 }
-
