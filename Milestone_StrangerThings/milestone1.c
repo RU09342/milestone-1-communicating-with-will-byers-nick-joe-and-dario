@@ -21,7 +21,7 @@
 #define greenLED    BIT3;
 #define blueLED     BIT4;
 #define active      BIT7;
-volatile int bit;
+volatile int bit = 0, size = 0;
 
 
 
@@ -108,14 +108,15 @@ void main(void) {
  *                      *
 \************************/
 
-#pragma vector=USCI_A0_VECTOR
-__interrupt void USCI_A0_ISR(void) {
+#pragma vector=USCI_A0_VECTOR           // Interrupt vector definition
+__interrupt void USCI_A0_ISR(void) {    // Interrupt function decleration
 
     P4OUT |= active;                    // Toggles Indicator LED
 
     switch(bit) {                       // Switch statement for byte position
         case 0 :                        // Length Byte
         while(!(UCA0IFG & UCTXIFG));    // Checks to make sure TX Buffer is ready
+        size = UCA0RXBUF;
         UCA0TXBUF = UCA0RXBUF - 3;      // Sends bit
         break;
         case 1 :                        // Red LED PWM
@@ -132,11 +133,12 @@ __interrupt void USCI_A0_ISR(void) {
             UCA0TXBUF = UCA0RXBUF;      // Passes incoming byte to outgoing byte
         break;
     }
-
-    if(UCA0RXBUF != 0x0D){          // If the end byte is not recieved
-        bit += 1;                   // Increment the bit value
-    } else {                        // If the end byte is reachec
-        P4OUT &= ~active;           // Turn off Indicator LED
-        bit = 0;                    // Resets the bit value
+    
+        if(bit != size - 1){            // If the end byte is not reached
+            bit += 1;                   // Increment the bit value
+        } else {                        // If the end byte is reached
+            P4OUT &= ~active;           // Turn off Indicator LED
+            bit = 0;                    // Resets the bit value
+        }
     }
-}
+
